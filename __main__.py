@@ -327,6 +327,45 @@ def main(input_path: str, headers_path: str):
 
     output = CodeWriter(data_output, 1)
 
+    output.indent()
+    output.open_custom_block(f"public static class Deserializer")
+    output.newline()
+
+    output.indent()
+    output.open_function("deserialize", [("DataInputStream", "input")], "static Object", "IOException")
+    output.newline()
+
+    output.indent()
+    output.open_switch("input.readInt()")
+    output.newline()
+
+    for classes in (object_classes, function_classes):
+        for class_name in classes.keys():
+            output.indent()
+            output.open_switch_case(f"{class_name}.CONSTRUCTOR")
+            output.newline()
+
+            output.indent()
+            output.ret(f"new {class_name}(input)")
+            output.newline()
+
+            output.indent_depth -= 1
+
+    output.indent()
+    output.open_switch_default()
+    output.newline()
+
+    output.indent()
+    output.exception("UnsupportedOperationException")
+    output.newline()
+    output.indent_depth -= 1
+
+    output.close_block(space=True)
+    output.close_block(space=True)
+    output.close_block(space=True)
+
+    output.newline()
+
     for container_class in container_classes:
         output.indent()
         output.open_custom_block(f"public abstract static class", container_class, "extends Object")
