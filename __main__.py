@@ -70,6 +70,11 @@ def deserialize_native(output: CodeWriter, arg_name, arg_type, null_check: bool 
         output.newline()
 
     if arg_type == "byte[]" or arg_type == "byte":
+        if null_check:
+            output.indent()
+            output.open_if("input.readBoolean()")
+            output.newline()
+
         output.indent()
         output.class_assign(arg_name, f"new byte[input.readInt()]")
         output.newline()
@@ -77,6 +82,9 @@ def deserialize_native(output: CodeWriter, arg_name, arg_type, null_check: bool 
         output.indent()
         output.call("input.readFully", f"this.{arg_name}")
         output.newline()
+
+        if null_check:
+            output.close_block(space=True)
 
     if arg_type == "long":
         output.indent()
@@ -149,12 +157,31 @@ def serialize_native(output: CodeWriter, arg_type: str, arg_name: str, null_chec
         output.newline()
 
     if arg_type == "byte[]" or arg_type == "byte":
+        if null_check:
+            output.indent()
+            output.open_if(f"this.{arg_name} == null")
+
+            output.newline()
+            output.indent()
+            output.call("output.writeBoolean", "false")
+            output.newline()
+
+            output.open_if_else(space=True)
+            output.newline()
+
+            output.indent()
+            output.call("output.writeBoolean", "true")
+            output.newline()
+
         output.indent()
         output.call("output.writeInt", f"this.{arg_name}.length")
         output.newline()
         output.indent()
         output.call("output.write", f"this.{arg_name}")
         output.newline()
+
+        if null_check:
+            output.close_block(space=True)
 
     if arg_type == "long":
         output.indent()
@@ -332,7 +359,7 @@ def main(input_path: str, headers_path: str):
     output.newline()
 
     output.indent()
-    output.open_function("deserialize", [("DataInputStream", "input")], "static Object", "IOException")
+    output.open_function("deserialize", [("DataInput", "input")], "static Object", "IOException")
     output.newline()
 
     output.indent()
@@ -410,7 +437,7 @@ def main(input_path: str, headers_path: str):
 
             output.newline()
             output.indent()
-            output.open_constructor_function(class_name, [("DataInputStream", "input")], "IOException")
+            output.open_constructor_function(class_name, [("DataInput", "input")], "IOException")
             output.newline()
 
             for arg_type, arg_name in class_meta[2]:
@@ -421,6 +448,10 @@ def main(input_path: str, headers_path: str):
                     deserialize_tdapi(output, arg_name, arg_type, container_classes, object_classes)
 
                 elif arg_type == "byte[][]" or not arg_type.endswith("[][]"):
+                    output.indent()
+                    output.open_if("input.readBoolean()")
+                    output.newline()
+
                     output.indent()
                     if arg_type == "byte[][]":
                         output.class_assign(arg_name, f"new byte[input.readInt()][]")
@@ -440,8 +471,13 @@ def main(input_path: str, headers_path: str):
                                           container_classes, object_classes, null_check=False)
 
                     output.close_block(space=True)
+                    output.close_block(space=True)
 
                 elif arg_type.endswith("[][]"):
+                    output.indent()
+                    output.open_if("input.readBoolean()")
+                    output.newline()
+
                     output.indent()
                     output.class_assign(arg_name, f"new {arg_type[:-4]}[input.readInt()][]")
                     output.newline()
@@ -467,6 +503,7 @@ def main(input_path: str, headers_path: str):
 
                     output.close_block(space=True)
                     output.close_block(space=True)
+                    output.close_block(space=True)
 
             output.close_block(space=True)
 
@@ -487,7 +524,7 @@ def main(input_path: str, headers_path: str):
             output.newline()
 
             output.indent()
-            output.call("output.writeInt", f"this.CONSTRUCTOR")
+            output.call("output.writeInt", f"CONSTRUCTOR")
             output.newline()
 
             for arg_type, arg_name in class_meta[2]:
@@ -498,6 +535,21 @@ def main(input_path: str, headers_path: str):
                     serialize_tdapi(output, arg_name)
 
                 elif arg_type == "byte[][]" or not arg_type.endswith("[][]"):
+                    output.indent()
+                    output.open_if(f"this.{arg_name} == null")
+                    output.newline()
+
+                    output.indent()
+                    output.call("output.writeBoolean", "false")
+                    output.newline()
+
+                    output.open_if_else(space=True)
+                    output.newline()
+
+                    output.indent()
+                    output.call("output.writeBoolean", "true")
+                    output.newline()
+
                     output.indent()
                     output.call("output.writeInt", f"this.{arg_name}.length")
                     output.newline()
@@ -512,8 +564,24 @@ def main(input_path: str, headers_path: str):
                         serialize_tdapi(output, f"{arg_name}[i]", null_check=False)
 
                     output.close_block(space=True)
+                    output.close_block(space=True)
 
                 elif arg_type.endswith("[][]"):
+                    output.indent()
+                    output.open_if(f"this.{arg_name} == null")
+                    output.newline()
+
+                    output.indent()
+                    output.call("output.writeBoolean", "false")
+                    output.newline()
+
+                    output.open_if_else(space=True)
+                    output.newline()
+
+                    output.indent()
+                    output.call("output.writeBoolean", "true")
+                    output.newline()
+
                     output.indent()
                     output.call("output.writeInt", f"this.{arg_name}.length")
                     output.newline()
@@ -535,6 +603,7 @@ def main(input_path: str, headers_path: str):
                     else:
                         serialize_tdapi(output, f"{arg_name}[i][j]", null_check=False)
 
+                    output.close_block(space=True)
                     output.close_block(space=True)
                     output.close_block(space=True)
 
