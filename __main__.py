@@ -230,7 +230,7 @@ def serialize_native(output: CodeWriter, arg_type: str, arg_name: str, null_chec
             output.close_block(space=True)
 
 
-def main(input_path: str, headers_path: str):
+def main(input_path: str, output_path: str, headers_path: str):
     data_input = open(input_path)
 
     package: typing.Optional[str] = None
@@ -347,7 +347,9 @@ def main(input_path: str, headers_path: str):
             container_class_name = keywords[5]
             continue
 
-    data_output = open("new_" + input_path, "w")
+    data_input.close()
+
+    data_output = open(output_path, "w")
     data_output.write(package + "\n\n")
     data_output.write(open(headers_path).read())
     container_classes.remove("Function")
@@ -616,4 +618,4 @@ def main(input_path: str, headers_path: str):
 
 
 if __name__ == '__main__':
-    main(sys.argv[-2], sys.argv[-1])
+    main(sys.argv[-3], sys.argv[-2], sys.argv[-1])
