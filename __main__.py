@@ -618,4 +618,4 @@ def main(input_path: str, output_path: str, headers_path: str):
 
 
 if __name__ == '__main__':
-    main(sys.argv[-3], sys.argv[-2], sys.argv[-1])
+    main(sys.argv[-3], sys.argv[-2], sys.argv[-1]

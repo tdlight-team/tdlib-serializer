@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.lang.IllegalStateException;
 import java.io.IOException;
+import java.io.DataInput;
 
 
 public class TdApi {
