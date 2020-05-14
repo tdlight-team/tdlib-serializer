@@ -1,7 +1,7 @@
 import typing
 
 
-indent = "    "
+indent = "\t"
 
 
 class CodeWriter:
