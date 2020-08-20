@@ -109,7 +109,7 @@ def deserialize_native(output: CodeWriter, arg_name, arg_type, null_check: bool 
 
         tmp_name = arg_name.split("[")[0] + "Tmp"
         output.indent()
-        output.local_assign(tmp_name, f"new byte[input.readInt()]")
+        output.local_assign("byte[]", tmp_name, f"new byte[input.readInt()]")
         output.newline()
 
         output.indent()
@@ -217,7 +217,7 @@ def serialize_native(output: CodeWriter, arg_type: str, arg_name: str, null_chec
 
         output.indent()
         tmp_name = arg_name.split("[")[0] + "Tmp"
-        output.local_assign(tmp_name, f"this.{arg_name}.getBytes(StandardCharsets.UTF_8)")
+        output.local_assign("byte[]", tmp_name, f"this.{arg_name}.getBytes(StandardCharsets.UTF_8)")
         output.newline()
         output.indent()
         output.call("output.writeInt", f"{tmp_name}.length")

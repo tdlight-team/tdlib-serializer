@@ -57,8 +57,8 @@ class CodeWriter:
         self.fd.write("} else {")
         self.indent_depth += 1
 
-    def local_assign(self, name: str, value: str):
-        self.fd.write("var " + name + " = " + value + ";")
+    def local_assign(self, object_type: str, name: str, value: str):
+        self.fd.write(object_type + " " + name + " = " + value + ";")
 
     def open_for(self, start: str, cond: str, stmt: str):
         self.indent_depth += 1
