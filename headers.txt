@@ -14,8 +14,8 @@ public class TdApi {
         public abstract int getConstructor();
 
         public byte[] serialize() throws IOException {
-            try(var baos = new ByteArrayOutputStream()) {
-                try(var out = new DataOutputStream(baos)) {
+            try(ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                try(DataOutputStream out = new DataOutputStream(baos)) {
                     serialize(out);
                     return baos.toByteArray();
                 }
