@@ -16,13 +16,22 @@ public class TdApi {
             if (o == null) return false;
             if (o == this) return true;
             if (o instanceof Object) {
-                return Arrays.equals(this.serialize(), o.serialize());
+                try {
+                    return Arrays.equals(this.serialize(), o.serialize());
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
             }
             return false;
         }
 
         public int hashCode() {
-            return Arrays.hashCode(this.serialize());
+            try {
+                return Arrays.hashCode(this.serialize());
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+            return 0;
         }
 
         public abstract int getConstructor();
