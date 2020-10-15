@@ -12,12 +12,13 @@ public class TdApi {
     public abstract static class Object {
         public native String toString();
 
-        public boolean equals(Object o) {
+        @Override
+        public boolean equals(java.lang.Object o) {
             if (o == null) return false;
             if (o == this) return true;
-            if (o instanceof Object) {
+            if (o instanceof TdApi.Object) {
                 try {
-                    return Arrays.equals(this.serialize(), o.serialize());
+                    return Arrays.equals(this.serialize(), ((TdApi.Object) o).serialize());
                 } catch (IOException ex) {
                     ex.printStackTrace();
                 }
@@ -25,6 +26,7 @@ public class TdApi {
             return false;
         }
 
+        @Override
         public int hashCode() {
             try {
                 return Arrays.hashCode(this.serialize());
