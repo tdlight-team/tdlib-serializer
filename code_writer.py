@@ -19,6 +19,18 @@ class CodeWriter:
         self.fd.write(" ".join(blocks) + " {")
         self.indent_depth += 1
 
+    def open_docs(self):
+        self.fd.write("/**")
+
+    def write_docs(self, text: str = ""):
+        if text.strip() != "":
+            self.fd.write(f" * {text}")
+        else:
+            self.fd.write(" *")
+
+    def close_docs(self):
+        self.fd.write(" */")
+
     def class_assign(self, class_value, local_value):
         self.fd.write("this." + class_value + " = " + local_value + ";")
 
@@ -59,6 +71,9 @@ class CodeWriter:
 
     def local_assign(self, object_type: str, name: str, value: str):
         self.fd.write(object_type + " " + name + " = " + value + ";")
+
+    def assign(self, name: str, value: str):
+        self.fd.write(name + " = " + value + ";")
 
     def open_for(self, start: str, cond: str, stmt: str):
         self.indent_depth += 1
