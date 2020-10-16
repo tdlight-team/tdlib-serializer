@@ -13,30 +13,6 @@ public class TdApi {
     public abstract static class Object {
         public native String toString();
 
-        @Override
-        public boolean equals(java.lang.Object o) {
-            if (o == null) return false;
-            if (o == this) return true;
-            if (o instanceof TdApi.Object) {
-                try {
-                    return Arrays.equals(this.serialize(), ((TdApi.Object) o).serialize());
-                } catch (IOException ex) {
-                    ex.printStackTrace();
-                }
-            }
-            return false;
-        }
-
-        @Override
-        public int hashCode() {
-            try {
-                return Arrays.hashCode(this.serialize());
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-            return 0;
-        }
-
         public abstract int getConstructor();
 
         public byte[] serialize() throws IOException {

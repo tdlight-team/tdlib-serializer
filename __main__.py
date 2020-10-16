@@ -20,9 +20,47 @@ native_to_object = {
     "String": "String"
 }
 
+comment = ("/**", "* ", "*/")
+
 cmp_natives = natives.copy()
 cmp_natives.remove("String")
 cmp_natives.remove("byte[]")
+
+
+def split_docs(docs: typing.List[str]) -> typing.List[str]:
+    tokens = " ".join(docs).split(" ")
+    result = [tokens[0]]
+
+    for token in tokens[1:]:
+        if len(" ".join(result[-1]) + token) < 70:
+            result[-1] += f" {token}"
+        else:
+            result.append(token)
+
+    return result
+
+
+def extract_doc(lines: typing.List[str], line: int) -> typing.List[str]:
+    line = next(
+        n
+        for n in range(line - 2, 0, -1)
+        if lines[n].startswith("/**")
+    )
+
+    result = []
+
+    while True:
+        line += 1
+
+        if lines[line].startswith("*/"):
+            break
+
+        current = lines[line].split(" ", maxsplit=1)[-1]
+
+        if current.strip() != "*":
+            result.append(current)
+
+    return result
 
 
 def hash_object(name: str, typ: str) -> str:
@@ -269,6 +307,7 @@ def main(input_path: str, output_path: str, headers_path: str):
     inside_function_class: bool = False
     inside_object_container_class: bool = False
     container_class_name: typing.Optional[str] = None
+    current_class_docs: typing.Optional[typing.List[str]] = None
     function_depth: int = 0
 
     function_classes = OrderedDict()
@@ -280,11 +319,12 @@ def main(input_path: str, output_path: str, headers_path: str):
     container_classes: typing.List[str] = []
     # [class_name, ...]
 
-    current_arguments: typing.Optional[typing.List[typing.Tuple[str, str]]] = None
+    current_arguments: typing.Optional[typing.List[typing.Tuple[str, str, typing.List[str]]]] = None
     # [(arg_name, arg_type), ...]
 
-    for line in data_input.readlines():
-        line = line.strip()
+    lines = list(map(str.strip, data_input.readlines()))
+
+    for no, line in enumerate(lines):
         keywords = line.split()
 
         if not keywords:
@@ -313,7 +353,8 @@ def main(input_path: str, output_path: str, headers_path: str):
 
         if inside_object_class and keywords[-1] == "}":
             inside_object_class = False
-            object_classes[current_class_name] = (current_constructor, container_class_name, current_arguments)
+            object_classes[current_class_name] = (current_constructor, container_class_name,
+                                                  current_arguments, current_class_docs)
             container_class_name = None
             current_arguments = None
             current_class_name = None
@@ -322,7 +363,8 @@ def main(input_path: str, output_path: str, headers_path: str):
 
         if inside_function_class and keywords[0] == "}":
             inside_function_class = False
-            function_classes[current_class_name] = (current_constructor, container_class_name, current_arguments)
+            function_classes[current_class_name] = (current_constructor, container_class_name,
+                                                    current_arguments, current_class_docs)
             current_arguments = None
             container_class_name = None
             current_class_name = None
@@ -331,7 +373,7 @@ def main(input_path: str, output_path: str, headers_path: str):
 
         if inside_function_class or inside_object_class:
             if len(keywords) == 3 and keywords[-1].endswith(";"):
-                current_arguments.append((keywords[1], keywords[2][:-1]))
+                current_arguments.append((keywords[1], keywords[2][:-1], extract_doc(lines, no)))
                 continue
 
             if len(keywords) == 7 and keywords[4] == "CONSTRUCTOR":
@@ -358,6 +400,7 @@ def main(input_path: str, output_path: str, headers_path: str):
             current_class_name = keywords[-4]
             current_arguments = []
             inside_object_class = True
+            current_class_docs = extract_doc(lines, no)
             container_class_name = keywords[5]
             continue
 
@@ -365,6 +408,7 @@ def main(input_path: str, output_path: str, headers_path: str):
             current_class_name = keywords[-4]
             current_arguments = []
             inside_function_class = True
+            current_class_docs = extract_doc(lines, no)
             container_class_name = keywords[5]
             continue
 
@@ -433,10 +477,21 @@ def main(input_path: str, output_path: str, headers_path: str):
         for class_name, class_meta in classes.items():
             output.indent()
             output.open_custom_block("public static class", class_name, "extends", class_meta[1])
-            output.newline()
 
-            for arg_type, arg_name in class_meta[2]:
+            for arg_type, arg_name, docs in class_meta[2]:
+                output.newline()
                 output.indent()
+                output.open_docs()
+                output.newline()
+                output.indent()
+                for doc in split_docs(docs):
+                    output.write_docs(doc)
+                    output.newline()
+                    output.indent()
+                output.close_docs()
+                output.newline()
+                output.indent()
+
                 output.declare(arg_name, arg_type, "public")
                 output.newline()
 
@@ -453,12 +508,42 @@ def main(input_path: str, output_path: str, headers_path: str):
             output.close_block()
             output.newline()
 
+            output.indent()
+            output.open_docs()
+
+            for doc in class_meta[3]:
+                output.newline()
+                output.indent()
+                output.write_docs(doc)
+
+            output.newline()
+            output.indent()
+            output.write_docs()
+
+            for arg_name, arg_type, docs in class_meta[2]:
+                docs = split_docs(docs)
+                output.newline()
+                output.indent()
+                output.write_docs(f"@param {arg_type} {arg_name} {docs[0]}")
+
+                for doc in docs[1:]:
+                    output.newline()
+                    output.indent()
+                    output.write_docs()
+                    output.fd.write(f"        {doc}")
+
+            output.newline()
+            output.indent()
+            output.close_docs()
+
+            output.newline()
+
             if class_meta[2]:
                 output.indent()
-                output.open_constructor_function(class_name, class_meta[2])
+                output.open_constructor_function(class_name, [(x[0], x[1]) for x in class_meta[2]])
                 output.newline()
 
-                for arg_type, arg_name in class_meta[2]:
+                for arg_type, arg_name, _ in class_meta[2]:
                     output.indent()
                     output.class_assign(arg_name, arg_name)
                     output.newline()
@@ -470,7 +555,7 @@ def main(input_path: str, output_path: str, headers_path: str):
             output.open_constructor_function(class_name, [("DataInput", "input")], "IOException")
             output.newline()
 
-            for arg_type, arg_name in class_meta[2]:
+            for arg_type, arg_name, _ in class_meta[2]:
                 if arg_type in natives:
                     deserialize_native(output, arg_name, arg_type)
 
@@ -557,7 +642,7 @@ def main(input_path: str, output_path: str, headers_path: str):
             output.call("output.writeInt", f"CONSTRUCTOR")
             output.newline()
 
-            for arg_type, arg_name in class_meta[2]:
+            for arg_type, arg_name, _ in class_meta[2]:
                 if arg_type in natives:
                     serialize_native(output, arg_type, arg_name)
 
@@ -667,7 +752,7 @@ def main(input_path: str, output_path: str, headers_path: str):
 
                 output.newline()
 
-                for arg_type, arg_name in class_meta[2]:
+                for arg_type, arg_name, _ in class_meta[2]:
                     output.indent()
 
                     if arg_type in cmp_natives:
@@ -702,7 +787,7 @@ def main(input_path: str, output_path: str, headers_path: str):
             output.indent()
 
             if class_meta[2]:
-                primitives = [(t, n) for t, n in class_meta[2] if t in cmp_natives]
+                primitives = [(t, n) for t, n, _ in class_meta[2] if t in cmp_natives]
 
                 if primitives and len(class_meta[2]) == 1:
                     output.ret(f"{native_to_object[primitives[0][0]]}.hashCode(this.{primitives[0][1]})")
@@ -719,7 +804,7 @@ def main(input_path: str, output_path: str, headers_path: str):
                         output.newline()
                         output.indent()
 
-                tdapi = [(t, n) for t, n in class_meta[2] if n not in [p[1] for p in primitives]]
+                tdapi = [(t, n) for t, n, _ in class_meta[2] if n not in [p[1] for p in primitives]]
 
                 if tdapi and len(class_meta[2]) == 1:
                     output.ret(hash_object(f"this.{tdapi[0][1]}", tdapi[0][0]))
