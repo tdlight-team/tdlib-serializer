@@ -511,10 +511,11 @@ def main(input_path: str, output_path: str, headers_path: str):
             output.indent()
             output.open_docs()
 
-            for doc in class_meta[3]:
-                output.newline()
-                output.indent()
-                output.write_docs(doc)
+            for docs in class_meta[3]:
+                for doc in split_docs([docs]):
+                    output.newline()
+                    output.indent()
+                    output.write_docs(doc)
 
             output.newline()
             output.indent()
