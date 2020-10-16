@@ -37,7 +37,7 @@ def split_docs(docs: typing.List[str]) -> typing.List[str]:
         else:
             result.append(token)
 
-    if len(result) > 1 and len(result[1]) < 3:
+    if len(result) > 1 and len(result[1].split(" ")) < 3:
         result[-2] += f" {result[-1]}"
         del result[-1]
 
