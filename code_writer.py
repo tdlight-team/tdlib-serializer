@@ -60,6 +60,9 @@ class CodeWriter:
     def local_assign(self, object_type: str, name: str, value: str):
         self.fd.write(object_type + " " + name + " = " + value + ";")
 
+    def assign(self, name: str, value: str):
+        self.fd.write(name + " = " + value + ";")
+
     def open_for(self, start: str, cond: str, stmt: str):
         self.indent_depth += 1
         self.fd.write("for (" + start + "; " + cond + "; " + stmt + ") {")
