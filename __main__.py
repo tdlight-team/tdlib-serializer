@@ -480,6 +480,20 @@ def main(input_path: str, output_path: str, headers_path: str):
     for classes in (object_classes, function_classes):
         for class_name, class_meta in classes.items():
             output.indent()
+            output.open_docs()
+
+            for docs in class_meta[3]:
+                for doc in split_docs([docs]):
+                    output.newline()
+                    output.indent()
+                    output.write_docs(doc)
+
+            output.newline()
+            output.indent()
+            output.close_docs()
+
+            output.newline()
+            output.indent()
             output.open_custom_block("public static class", class_name, "extends", class_meta[1])
 
             for arg_type, arg_name, docs in class_meta[2]:
@@ -499,12 +513,24 @@ def main(input_path: str, output_path: str, headers_path: str):
                 output.declare(arg_name, arg_type, "public")
                 output.newline()
 
-            if class_meta[2]:
-                output.newline()
-
+            output.newline()
             output.indent()
             output.declare("CONSTRUCTOR", "int", "public static final", value=str(class_meta[0]))
             output.newline()
+            output.newline()
+
+            output.indent()
+            output.open_docs()
+
+            for docs in class_meta[3]:
+                for doc in split_docs([docs]):
+                    output.newline()
+                    output.indent()
+                    output.write_docs(doc)
+
+            output.newline()
+            output.indent()
+            output.close_docs()
 
             output.newline()
             output.indent()
