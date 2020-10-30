@@ -45,9 +45,10 @@ def split_docs(docs: typing.List[str]) -> typing.List[str]:
 
 
 def extract_doc(lines: typing.List[str], line: int) -> typing.List[str]:
+    look_back = 2
     line = next(
         n
-        for n in range(line - 2, 0, -1)
+        for n in range(line - look_back, 0, -1)
         if lines[n].startswith("/**")
     )
 
@@ -315,13 +316,13 @@ def main(input_path: str, output_path: str, headers_path: str):
     function_depth: int = 0
 
     function_classes = OrderedDict()
-    # key: {class_name, value: (constructor_id, container_name, [arg_type, arg_name])}
+    # key: {class_name, value: (constructor_id, container_name, [arg_type, arg_name], docs)}
 
     object_classes = OrderedDict()
-    # key: {class_name, value: (constructor_id, container_name, [arg_type, arg_name])}
+    # key: {class_name, value: (constructor_id, container_name, [arg_type, arg_name], docs)}
 
-    container_classes: typing.List[str] = []
-    # [class_name, ...]
+    container_classes: typing.List[str] = OrderedDict()
+    # key: {class_name, value: (docs)}
 
     current_arguments: typing.Optional[typing.List[typing.Tuple[str, str, typing.List[str]]]] = None
     # [(arg_name, arg_type), ...]
@@ -347,7 +348,7 @@ def main(input_path: str, output_path: str, headers_path: str):
 
         if inside_object_container_class and keywords[-1] == "}":
             inside_object_container_class = False
-            container_classes.append(current_class_name)
+            container_classes[current_class_name] = (current_class_docs)
             current_class_name = None
             continue
 
@@ -391,6 +392,7 @@ def main(input_path: str, output_path: str, headers_path: str):
         if len(keywords) == 8 and keywords[1] == "abstract":
             inside_object_container_class = True
             current_class_name = keywords[4]
+            current_class_docs = extract_doc(lines, no)
             continue
 
         if len(keywords) == 4 and keywords[2] == "TdApi":
@@ -420,6 +422,7 @@ def main(input_path: str, output_path: str, headers_path: str):
             current_class_name = keywords[-4]
             current_arguments = []
             inside_object_class = True
+            current_class_docs = extract_doc(lines, no)
             container_class_name = keywords[5]
             continue
 
@@ -428,7 +431,7 @@ def main(input_path: str, output_path: str, headers_path: str):
     data_output = open(output_path, "w")
     data_output.write(package + "\n\n")
     data_output.write(open(headers_path).read())
-    container_classes.remove("Function")
+    del container_classes["Function"]
 
     output = CodeWriter(data_output, 1)
 
@@ -471,9 +474,23 @@ def main(input_path: str, output_path: str, headers_path: str):
 
     output.newline()
 
-    for container_class in container_classes:
+    for container_class_name, container_class_meta in container_classes.items():
         output.indent()
-        output.open_custom_block(f"public abstract static class", container_class, "extends Object")
+        output.open_docs()
+
+        for docs in [container_class_meta[0]]:
+            for doc in split_docs([docs]):
+                output.newline()
+                output.indent()
+                output.write_docs(doc)
+
+        output.newline()
+        output.indent()
+        output.close_docs()
+
+        output.newline()
+        output.indent()
+        output.open_custom_block(f"public abstract static class", container_class_name, "extends Object")
         output.close_block()
         output.newline()
 
