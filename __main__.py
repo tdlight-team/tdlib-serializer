@@ -683,7 +683,7 @@ def main(input_path: str, output_path: str, headers_path: str):
 
             output.newline()
             output.indent()
-            output.open_function("serialize", [("DataOutputStream", "output")], "void", "IOException")
+            output.open_function("serialize", [("DataOutput", "output")], "void", "IOException")
             output.newline()
 
             output.indent()
