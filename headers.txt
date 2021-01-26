@@ -25,7 +25,7 @@ public class TdApi {
             }
         }
 
-        public abstract void serialize(DataOutputStream out) throws IOException;
+        public abstract void serialize(DataOutput out) throws IOException;
     }
 
     public abstract static class Function extends Object {
