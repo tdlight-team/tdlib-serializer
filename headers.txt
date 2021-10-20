@@ -28,7 +28,6 @@ public class TdApi {
         public abstract void serialize(DataOutput out) throws IOException;
     }
 
-    public abstract static class Function extends Object {
+    public abstract static class Function<R extends TdApi.Object> extends TdApi.Object {
         public native String toString();
     }
-
