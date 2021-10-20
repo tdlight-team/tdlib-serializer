@@ -511,7 +511,15 @@ def main(input_path: str, output_path: str, headers_path: str):
 
             output.newline()
             output.indent()
-            output.open_custom_block("public static class", class_name, "extends", class_meta[1])
+
+            class_generics = ""
+
+            if class_meta[1] == "Function":
+                class_generics = "<"
+                class_generics += docs.split("@link ")[1].split()[0]
+                class_generics += ">"
+
+            output.open_custom_block("public static class", class_name, "extends", class_meta[1] + class_generics)
 
             for arg_type, arg_name, docs in class_meta[2]:
                 output.newline()
