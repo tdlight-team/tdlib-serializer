@@ -508,7 +508,7 @@ def main(input_path: str, output_path: str, headers_path: str, java17: str):
 
         for i, allowed_classess_group in enumerate(chunker(allowed_classess, 3)):
             if i:
-                allowed_classess_str += "\n"
+                allowed_classess_str += ",\n"
                 allowed_classess_str += output.indent_chr * (output.indent_depth + 1)
             allowed_classess_str += ", ".join(allowed_classess_group)
 
