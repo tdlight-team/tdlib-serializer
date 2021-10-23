@@ -7,6 +7,23 @@ indent = "\t"
 class CodeWriter:
     fd: typing.TextIO
     indent_depth: int
+    indent_chr = indent
+
+    def split_args(self, args: str) -> typing.List[str]:
+        tokens = args.split(", ")
+        result = [tokens[0]]
+
+        for token in tokens[1:]:
+            if len(", ".join(result[-1]) + token) < 120:
+                result[-1] += f", {token}"
+            else:
+                result.append(token)
+
+        if len(result) > 1 and len(result[-1].split(", ")) < 3:
+            result[-2] += f", {result[-1]}"
+            del result[-1]
+
+        return result
 
     def __init__(self, file: typing.TextIO, indent_depth: int = 0):
         self.fd = file
@@ -99,10 +116,31 @@ class CodeWriter:
 
     def open_constructor_function(self, name: str, args: typing.List[typing.Tuple[str, str]], e: str = None):
         self.indent_depth += 1
-        result = "public " + name + "(" + ", ".join((t + " " + n for t, n in args)) + ")"
+        result = "public " + name + "("
+
+        result_args = ", ".join((t + " " + n for t, n in args))
+
+        if len(result_args) > 60:
+            result_args = result_args.split(", ")
+
+            for i, result_arg in enumerate(result_args):
+                if i:
+                    result += (self.indent_depth + 1) * indent
+
+                result += result_arg
+
+                if i != len(result_args) - 1:
+                    result += ",\n"
+        else:
+            result += result_args
+        
+        result += ")"
+        
         if e:
             result += " throws " + e
+        
         result += " {"
+        
         self.fd.write(result)
 
     def declare(self, name: str, typ: str, flags: str, value: str = None):

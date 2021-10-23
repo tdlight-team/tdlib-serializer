@@ -27,6 +27,10 @@ cmp_natives.remove("String")
 cmp_natives.remove("byte[]")
 
 
+def chunker(seq, size):
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+
+
 def split_docs(docs: typing.List[str]) -> typing.List[str]:
     tokens = " ".join(docs).split(" ")
     result = [tokens[0]]
@@ -301,9 +305,11 @@ def serialize_native(output: CodeWriter, arg_type: str, arg_name: str, null_chec
             output.close_block(space=True)
 
 
-def main(input_path: str, output_path: str, headers_path: str):
+def main(input_path: str, output_path: str, headers_path: str, java17: str):
     data_input = open(input_path)
 
+    java17 = java17 == "true"
+    
     package: typing.Optional[str] = None
     current_constructor: typing.Optional[int] = None
     current_class_name: typing.Optional[str] = None
@@ -490,7 +496,27 @@ def main(input_path: str, output_path: str, headers_path: str):
 
         output.newline()
         output.indent()
-        output.open_custom_block(f"public abstract static class", container_class_name, "extends Object")
+
+        allowed_classess = []
+
+        for classes in (object_classes, function_classes):
+            for class_name, class_meta in classes.items():
+                if container_class_name == class_meta[1]:
+                    allowed_classess.append(class_name)
+
+        allowed_classess_str = "permits "
+
+        for i, allowed_classess_group in enumerate(chunker(allowed_classess, 3)):
+            if i:
+                allowed_classess_str += "\n"
+                allowed_classess_str += output.indent_chr * (output.indent_depth + 1)
+            allowed_classess_str += ", ".join(allowed_classess_group)
+
+        if allowed_classess and java17:
+            output.open_custom_block(f"public abstract static sealed class", container_class_name, "extends Object", allowed_classess_str)
+        else:
+            output.open_custom_block(f"public abstract static class", container_class_name, "extends Object")
+
         output.close_block()
         output.newline()
 
@@ -519,7 +545,7 @@ def main(input_path: str, output_path: str, headers_path: str):
                 class_generics += docs.split("@link ")[1].split()[0]
                 class_generics += ">"
 
-            output.open_custom_block("public static class", class_name, "extends", class_meta[1] + class_generics)
+            output.open_custom_block("public static final class", class_name, "extends", class_meta[1] + class_generics)
 
             for arg_type, arg_name, docs in class_meta[2]:
                 output.newline()
@@ -572,11 +598,10 @@ def main(input_path: str, output_path: str, headers_path: str):
                     output.indent()
                     output.write_docs(doc)
 
-            output.newline()
-            output.indent()
-            output.write_docs()
-
             for arg_name, arg_type, docs in class_meta[2]:
+                output.newline()
+                output.indent()
+                output.write_docs()
                 docs = split_docs(docs)
                 output.newline()
                 output.indent()
@@ -605,6 +630,20 @@ def main(input_path: str, output_path: str, headers_path: str):
                     output.newline()
 
                 output.close_block(space=True)
+                output.newline()
+
+                output.indent()
+                output.open_docs()
+
+                for docs in class_meta[3]:
+                    for doc in split_docs([docs]):
+                        output.newline()
+                        output.indent()
+                        output.write_docs(doc)
+
+                output.newline()
+                output.indent()
+                output.close_docs()
                 output.newline()
 
             output.indent()
@@ -897,4 +936,4 @@ def main(input_path: str, output_path: str, headers_path: str):
 
 
 if __name__ == '__main__':
-    main(sys.argv[-3], sys.argv[-2], sys.argv[-1])
+    main(sys.argv[-4], sys.argv[-3], sys.argv[-2], sys.argv[-1])
