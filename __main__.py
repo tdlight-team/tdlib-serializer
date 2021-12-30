@@ -1,5 +1,6 @@
 import sys
 import typing
+import re
 
 from collections import OrderedDict
 from code_writer import CodeWriter
@@ -336,7 +337,7 @@ def main(input_path: str, output_path: str, headers_path: str, java17: str):
     current_arguments: typing.Optional[typing.List[typing.Tuple[str, str, typing.List[str]]]] = None
     # [(arg_name, arg_type), ...]
 
-    lines = list(map(compose(remove_parentheses, str.strip), data_input.readlines()))
+    lines = list(map(remove_parentheses, map(str.strip, data_input.readlines())))
 
     for no, line in enumerate(lines):
         keywords = line.split()
