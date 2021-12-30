@@ -304,6 +304,9 @@ def serialize_native(output: CodeWriter, arg_type: str, arg_name: str, null_chec
         if null_check:
             output.close_block(space=True)
 
+def remove_parentheses(s):
+    return re.sub(r'\<[^<>]*\>', '', s)
+
 
 def main(input_path: str, output_path: str, headers_path: str, java17: str):
     data_input = open(input_path)
@@ -333,7 +336,7 @@ def main(input_path: str, output_path: str, headers_path: str, java17: str):
     current_arguments: typing.Optional[typing.List[typing.Tuple[str, str, typing.List[str]]]] = None
     # [(arg_name, arg_type), ...]
 
-    lines = list(map(str.strip, data_input.readlines()))
+    lines = list(map(compose(remove_parentheses, str.strip), data_input.readlines()))
 
     for no, line in enumerate(lines):
         keywords = line.split()
