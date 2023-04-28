@@ -577,15 +577,66 @@ public class transform {
     }
 
     private static void serializeTdApi(JavaWriter w, String argName, boolean nullCheck) {
-        //todo:
+        if (nullCheck) {
+            w.writeIndent().writeOpenIf("this." + argName + " == null").writeNewLine();
+            w.writeIndent().writeCall("output.writeBoolean", "false").writeNewLine();
+            w.writeOpenIfElse(true).writeNewLine();
+            w.writeIndent().writeCall("output.writeBoolean", "true").writeNewLine();
+        }
+        w.writeIndent().writeCall("this." + argName + ".serialize", "output").writeNewLine();
+        if (nullCheck) {
+            w.writeCloseBlock(true).writeNewLine();
+        }
     }
 
     private static void serializeNative(JavaWriter w,  String argName, String argType) {
         serializeNative(w, argName, argType, true);
     }
 
-    private static void serializeNative(JavaWriter w,  String argName, String argType, boolean nullCheck) {
-        //todo:
+    private static void serializeNative(JavaWriter w, String argName, String argType, boolean nullCheck) {
+        switch (argType) {
+            case "int":
+                w.writeIndent().writeCall("output.writeInt", "this." + argName).writeNewLine();
+                break;
+            case "byte[]":
+            case "byte":
+                if (nullCheck) {
+                    w.writeIndent().writeOpenIf("this." + argName + " == null").writeNewLine();
+                    w.writeIndent().writeCall("output.writeBoolean", "false").writeNewLine();
+                    w.writeOpenIfElse(true).writeNewLine();
+                    w.writeIndent().writeCall("output.writeBoolean", "true").writeNewLine();
+                }
+                w.writeIndent().writeCall("output.writeInt", "this." + argName + ".length").writeNewLine();
+                w.writeIndent().writeCall("output.write", "this." + argName).writeNewLine();
+                if (nullCheck) {
+                    w.writeCloseBlock(true).writeNewLine();
+                }
+                break;
+            case "long":
+                w.writeIndent().writeCall("output.writeLong", "this." + argName).writeNewLine();
+                break;
+            case "double":
+                w.writeIndent().writeCall("output.writeDouble", "this." + argName).writeNewLine();
+                break;
+            case "boolean":
+                w.writeIndent().writeCall("output.writeBoolean", "this." + argName).writeNewLine();
+                break;
+            case "String":
+                if (nullCheck) {
+                    w.writeIndent().writeOpenIf("this." + argName + " == null").writeNewLine();
+                    w.writeIndent().writeCall("output.writeBoolean", "false").writeNewLine();
+                    w.writeIndent().writeOpenIfElse(true).writeNewLine();
+                    w.writeIndent().writeCall("output.writeBoolean", "true").writeNewLine();
+                }
+                var tmpName = argName.split("[", 2)[0] + "Tmp";
+                w.writeIndent().writeLocalAssign("byte[]", tmpName, "this." + argName + ".getBytes(StandardCharsets.UTF_8)").writeNewLine();
+                w.writeIndent().writeCall("output.writeInt", tmpName + ".length").writeNewLine();
+                w.writeIndent().writeCall("output.write", tmpName).writeNewLine();
+                if (nullCheck) {
+                    w.writeCloseBlock(true).writeNewLine();
+                }
+                break;
+        }
     }
 
     private static void deserializeTdApi(JavaWriter w, String name, String type, Map<String, List<String>> cont, Map<String, TdType> classes) {
