@@ -809,7 +809,7 @@ public class transform {
     }
 
     private static RuntimeException getHelp() {
-        System.err.println("Invalid syntax!\nArguments: --source PATH --output PATH [--jdk17 BOOLEAN] [--overwrite BOOLEAN] [--headers PATH]");
+        System.err.println("Invalid syntax!\nArguments: --source PATH --output PATH [--java17 BOOLEAN] [--overwrite BOOLEAN] [--headers PATH]");
         System.exit(1);
         return new IllegalStateException();
     }
