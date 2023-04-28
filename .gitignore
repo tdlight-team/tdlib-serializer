@@ -1,6 +1,8 @@
-*.java
 *.class
 .idea/
 __pycache__/
 *.pyc
 venv/
+/tdlib-serializer.iml
+*.j
+/out/
