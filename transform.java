@@ -16,6 +16,7 @@ import java.util.stream.Stream;
 public class transform {
 
     static List<String> NATIVES = List.of("int", "long", "boolean", "String", "double", "byte[]", "byte");
+    static List<String> PRIMITIVES = List.of("int", "long", "boolean", "double", "byte");
     static Map<String, String> NATIVE_TO_OBJ = Map.of("boolean", "Boolean",
             "byte[]", "Byte",
             "byte", "Byte",
@@ -270,31 +271,47 @@ public class transform {
             } else {
                 openFlags.add(StandardOpenOption.CREATE_NEW);
             }
-            try (var w = new JavaWriter(Files.newBufferedWriter(outputPath, StandardCharsets.UTF_8, openFlags.toArray(OpenOption[]::new)), 1)) {
+            try (var w = new JavaWriter(Files.newBufferedWriter(outputPath, StandardCharsets.UTF_8, openFlags.toArray(OpenOption[]::new)), 1, java17)) {
                 // Write package
                 w.write(package_).writeNewLine().writeNewLine();
                 // Write header
                 w.write(headers);
 
-                w.writeIndent().writeOpenCustomBlock("public static class Deserializer").writeNewLine();
+                w.writeIndent().writeOpenDocs().writeNewLine();
+                w.writeIndent().writeDocs("This class deserializes TDLib classes").writeNewLine();
+                w.writeIndent().writeCloseDocs().writeNewLine();
+
+                w.writeIndent().writeOpenCustomBlock("public static class Deserializer").writeNewLine().writeNewLine();
+
+                w.writeIndent().writeOpenDocs().writeNewLine();
+                w.writeIndent().writeDocs("The default constructor").writeNewLine();
+                w.writeIndent().writeCloseDocs().writeNewLine();
+                w.writeIndent().writeOpenConstructorFunction("Deserializer", List.of(), null).writeNewLine();
+                w.writeCloseBlock(true).writeNewLine();
+                w.writeNewLine();
+
+
+                w.writeIndent().writeOpenDocs().writeNewLine();
+                w.writeIndent().writeDocs("Deserialize the TDLib class").writeNewLine();
+                w.writeIndent().writeDocs("@param input stream that contain the serialized TDLib class to deserialize").writeNewLine();
+                w.writeIndent().writeDocs("@return the deserialized TDLib class").writeNewLine();
+                w.writeIndent().writeDocs("@throws IOException the deserialization failed").writeNewLine();
+                w.writeIndent().writeCloseDocs().writeNewLine();
 
                 w.writeIndent().writeOpenFunction("deserialize", List.of(Map.entry("DataInput", "input")), "static Object", "IOException").writeNewLine();
 
-                w.writeIndent().writeOpenSwitch("input.readInt()").writeNewLine();
+                w.writeIndent().writeOpenSwitchExpression(null, null, false, "input.readInt()").writeNewLine();
 
                 allClasses.forEach((className, x) -> {
-                   w.writeIndent().writeOpenSwitch(className + ".CONSTRUCTOR").writeNewLine();
-                   w.writeIndent().writeReturn("new " + className + "(input)").writeNewLine();
-
-                   w.decrementIndentation();
+                   w.writeIndent().writeSwitchCaseAndYield(className + ".CONSTRUCTOR", "new " + className + "(input)").writeNewLine();
                 });
 
                 w.writeIndent().writeOpenSwitchDefault().writeNewLine();
 
-                w.writeIndent().writeException("UnsupportedOperationException").writeNewLine();
-                w.decrementIndentation();
+                w.writeIndent().writeYieldException("UnsupportedOperationException").writeNewLine();
+                w.writeIndent().writeCloseCase().writeNewLine();
+                w.writeCloseSwitchExpression().writeNewLine();
 
-                w.writeCloseBlock(true).writeNewLine();
                 w.writeCloseBlock(true).writeNewLine();
                 w.writeCloseBlock(true).writeNewLine();
 
@@ -328,12 +345,19 @@ public class transform {
                             w.write(lines.get(i));
                         }
                         w.decrementIndentation();
-                        w.writeOpenCustomBlock("");
+                        w.writeOpenCustomBlock("").writeNewLine();
                     } else {
-                        w.writeOpenCustomBlock("public abstract static class " + containerClassName + " extends Object");
+                        w.writeOpenCustomBlock("public abstract static class " + containerClassName + " extends Object").writeNewLine();
                     }
 
-                    w.writeCloseBlock().writeNewLine().writeNewLine();
+                    w.writeNewLine();
+
+                    w.writeIndent().writeOpenDocs().writeNewLine();
+                    w.writeIndent().writeDocs("Default class constructor.").writeNewLine();
+                    w.writeIndent().writeCloseDocs().writeNewLine();
+                    w.writeIndent().writeOpenConstructorFunction(containerClassName, List.of(), null).writeCloseBlock().writeNewLine().writeNewLine();
+
+                    w.writeCloseBlock(true).writeNewLine().writeNewLine();
                 });
 
                 allClasses.forEach((className, classMeta) -> {
@@ -347,7 +371,8 @@ public class transform {
                     } else {
                         classGenerics = "";
                     }
-                    w.writeOpenCustomBlock("public static final class", className, "extends", classMeta.containerName + classGenerics);
+                    w.writeOpenCustomBlock("public static final class", className, "extends", classMeta.containerName + classGenerics).writeNewLine();
+                    w.writeNewLine();
 
                     classMeta.arguments.forEach(argument -> {
                         w.writeNewLine().writeIndent().writeOpenDocs().writeNewLine().writeIndent();
@@ -367,6 +392,7 @@ public class transform {
                     w.writeNewLine().writeIndent();
                     w.writeOpenConstructorFunction(className, List.of(), null);
                     w.writeCloseBlock().writeNewLine();
+                    w.writeNewLine();
 
                     w.writeIndent().writeOpenDocs();
 
@@ -376,21 +402,25 @@ public class transform {
                     classMeta.arguments.forEach(arg -> {
                         var docs = arg.docs;
                         w.writeNewLine().writeIndent();
-                        w.writeDocs("@param " + arg.type + " " + arg.name + " " + docs.get(0));
+                        w.writeDocs("@param " + arg.name + " " + docs.get(0));
                     });
                     classMeta.docs.subList(1, classMeta.docs.size()).forEach(doc -> w.writeNewLine().writeIndent().writeDocs(doc));
                     w.writeNewLine().writeIndent().writeCloseDocs();
                     w.writeNewLine();
+
                     if (!classMeta.arguments.isEmpty()) {
-                        w.writeIndent().writeOpenConstructorFunction(className, classMeta.arguments.stream().map(a -> Map.entry(a.name, a.type)).collect(Collectors.toList()), null);
+                        w.writeIndent().writeOpenConstructorFunction(className, classMeta.arguments.stream().map(a -> Map.entry(a.type, a.name)).collect(Collectors.toList()), null);
                         w.writeNewLine();
                         classMeta.arguments.forEach(arg -> w.writeIndent().writeClassAssign(arg.name, arg.name).writeNewLine());
                         w.writeCloseBlock(true).writeNewLine();
 
-                        w.writeNewLine().writeIndent().writeOpenDocs();
-                        classMeta.docs.forEach(doc -> w.writeNewLine().writeIndent().writeDocs(doc));
-                        w.writeNewLine().writeIndent().writeCloseDocs().writeNewLine();
                     }
+                    w.writeNewLine().writeIndent().writeOpenDocs().writeNewLine();
+                    classMeta.docs.forEach(doc -> w.writeIndent().writeDocs(doc).writeNewLine());
+                    w.writeIndent().writeDocs("").writeNewLine();
+                    w.writeIndent().writeDocs("@param input Serialized input").writeNewLine();
+                    w.writeIndent().writeDocs("@throws IOException the deserialization failed").writeNewLine();
+                    w.writeIndent().writeCloseDocs().writeNewLine();
                     w.writeIndent().writeOpenConstructorFunction(className, List.of(Map.entry("DataInput", "input")), "IOException").writeNewLine();
 
                     classMeta.arguments.forEach(arg -> {
@@ -439,11 +469,18 @@ public class transform {
                     w.writeIndent().writeDocs("@return this.CONSTRUCTOR").writeNewLine();
                     w.writeIndent().writeCloseDocs().writeNewLine();
                     w.writeIndent().writeOpenFunction("getConstructor", List.of(), "int", null).writeNewLine();
-                    w.writeIndent().writeReturn("CONSTRUCTOR").writeNewLine();
+                    w.writeIndent().writeReturn(className + ".CONSTRUCTOR").writeNewLine();
                     w.writeCloseBlock(true).writeNewLine();
                     w.writeNewLine();
+
+                    w.writeIndent().writeOpenDocs().writeNewLine();
+                    w.writeIndent().writeDocs("Serialize the TDLib class").writeNewLine();
+                    w.writeIndent().writeDocs("@param output output data stream").writeNewLine();
+                    w.writeIndent().writeDocs("@throws IOException the serialization failed").writeNewLine();
+                    w.writeIndent().writeCloseDocs().writeNewLine();
+
                     w.writeIndent().writeOpenFunction("serialize", List.of(Map.entry("DataOutput", "output")), "void", "IOException").writeNewLine();
-                    w.writeIndent().writeCall("output.writeInt", "CONSTRUCTOR").writeNewLine();
+                    w.writeIndent().writeCall("output.writeInt", className + ".CONSTRUCTOR").writeNewLine();
                     classMeta.arguments.forEach(arg -> {
                         if (NATIVES.contains(arg.type)) {
                             serializeNative(w, arg.name, arg.type);
@@ -458,7 +495,7 @@ public class transform {
                             w.writeIndent().writeCall("output.writeInt", "this." + arg.name + ".length").writeNewLine();
                             w.writeIndent().writeOpenFor("int i = 0", "i < this." + arg.name + ".length", "i++").writeNewLine();
                             if (NATIVES.contains(baseArgType)) {
-                                serializeNative(w, baseArgType, arg.name + "[i]", false);
+                                serializeNative(w, arg.name + "[i]", baseArgType, false);
                             } else {
                                 serializeTdApi(w, arg.name + "[i]", false);
                             }
@@ -475,7 +512,7 @@ public class transform {
                             w.writeIndent().writeCall("output.writeInt", "this." + arg.name + "[i].length").writeNewLine();
                             w.writeIndent().writeOpenFor("int j = 0", "j < this." + arg.name + "[i].length", "j++").writeNewLine();
                             if (NATIVES.contains(baseArgType)) {
-                                serializeNative(w, baseArgType, arg.name + "[i][j]", false);
+                                serializeNative(w, arg.name + "[i][j]", baseArgType, false);
                             } else {
                                 serializeTdApi(w, arg.name + "[i][j]", false);
                             }
@@ -505,7 +542,7 @@ public class transform {
                             } else if (!arg.type.endsWith("[]")) {
                                 w.writeOpenIf("!Objects.equals(this." + arg.name + ", " + otherClass + "." + arg.name + ")");
                             } else if (arg.type.endsWith("[][]")) {
-                                w.writeOpenIf("!Arrays.deepEquals(this." + arg.type + ", " + otherClass + "." + arg.name + ")");
+                                w.writeOpenIf("!Arrays.deepEquals(this." + arg.name + ", " + otherClass + "." + arg.name + ")");
                             } else {
                                 w.writeOpenIf("!Arrays.equals(this." + arg.name + ", " + otherClass + "." + arg.name + ")");
                             }
@@ -518,14 +555,14 @@ public class transform {
                     w.writeIndent().writeOpenFunction("hashCode", List.of(), "int", null).writeNewLine();
                     w.writeIndent();
                     if (!classMeta.arguments.isEmpty()) {
-                        var primitives = classMeta.arguments.stream().filter(n -> NATIVES.contains(n.type)).collect(Collectors.toList());
+                        var primitives = classMeta.arguments.stream().filter(n -> PRIMITIVES.contains(n.type)).collect(Collectors.toList());
                         if (!primitives.isEmpty() && classMeta.arguments.size() == 1) {
                             w.writeReturn(NATIVE_TO_OBJ.get(primitives.get(0).type) + ".hashCode(this." + primitives.get(0).name + ")");
                         } else if (!primitives.isEmpty()) {
                             w.writeLocalAssign("int", "result", NATIVE_TO_OBJ.get(primitives.get(0).type) + ".hashCode(this." + primitives.get(0).name + ")").writeNewLine();
                             w.writeIndent();
                         }
-                        var tdapi = classMeta.arguments.stream().filter(n -> !NATIVES.contains(n.type)).collect(Collectors.toList());
+                        var tdapi = classMeta.arguments.stream().filter(n -> !PRIMITIVES.contains(n.type)).collect(Collectors.toList());
                         int start;
                         if (!tdapi.isEmpty() && classMeta.arguments.size() == 1) {
                             w.writeReturn(hashObject("this." + tdapi.get(0).name, tdapi.get(0).type));
@@ -549,7 +586,7 @@ public class transform {
                             w.writeReturn("result");
                         }
                     } else {
-                        w.writeReturn("CONSTRUCTOR");
+                        w.writeReturn(className + ".CONSTRUCTOR");
                     }
                     w.writeNewLine();
 
@@ -628,7 +665,7 @@ public class transform {
                     w.writeIndent().writeOpenIfElse(true).writeNewLine();
                     w.writeIndent().writeCall("output.writeBoolean", "true").writeNewLine();
                 }
-                var tmpName = argName.split("[", 2)[0] + "Tmp";
+                var tmpName = argName.split("\\[", 2)[0] + "Tmp";
                 w.writeIndent().writeLocalAssign("byte[]", tmpName, "this." + argName + ".getBytes(StandardCharsets.UTF_8)").writeNewLine();
                 w.writeIndent().writeCall("output.writeInt", tmpName + ".length").writeNewLine();
                 w.writeIndent().writeCall("output.write", tmpName).writeNewLine();
@@ -636,6 +673,7 @@ public class transform {
                     w.writeCloseBlock(true).writeNewLine();
                 }
                 break;
+            default: throw new UnsupportedOperationException(argName + ":" + argType);
         }
     }
 
@@ -649,19 +687,18 @@ public class transform {
         }
         w.writeIndent();
         if (cont.containsKey(argType)) {
-            w.writeOpenSwitch("input.readInt()").writeNewLine();
+            w.writeOpenSwitchExpression(null, "this." + argName, true, "input.readInt()").writeNewLine();
 
             classes.forEach((className, classMeta) -> {
                 if (classMeta.containerName.equals(argType) && !className.equals(argType)) {
-                    w.writeIndent().writeOpenSwitchCase(className + ".CONSTRUCTOR");
-                    w.writeNewLine().writeIndent().writeClassAssign(argName, "new " + className + "(input)");
-                    w.writeNewLine().writeIndent().writeSwitchBreak().writeNewLine();
+                    w.writeIndent().writeSwitchCaseAndYield(className + ".CONSTRUCTOR", "new " + className + "(input)").writeNewLine();
                 }
             });
 
             w.writeIndent().writeOpenSwitchDefault().writeNewLine();
-            w.writeIndent().writeException("UnsupportedOperationException").writeNewLine().decrementIndentation();
-            w.writeCloseBlock(true).writeNewLine();
+            w.writeIndent().writeYieldException("UnsupportedOperationException").writeNewLine();
+            w.writeIndent().writeCloseCase().writeNewLine();
+            w.writeCloseSwitchExpression().writeNewLine();
         } else {
             w.writeOpenIf(argType + ".CONSTRUCTOR != input.readInt()");
             w.writeNewLine().writeIndent().writeException("UnsupportedOperationException");
@@ -713,7 +750,7 @@ public class transform {
                 if (nullCheck) {
                     w.writeIndent().writeOpenIf("input.readBoolean()").writeNewLine();
                 }
-                var tmpName = name.split("\\[", 1)[0] + "Tmp";
+                var tmpName = name.split("\\[", 2)[0] + "Tmp";
                 w.writeIndent().writeLocalAssign("byte[]", tmpName, "new byte[input.readInt()]").writeNewLine();
                 w.writeIndent().writeCall("input.readFully", tmpName).writeNewLine();
                 w.writeIndent().writeClassAssign(name, "new String(" + tmpName + ", StandardCharsets.UTF_8)").writeNewLine();
@@ -830,11 +867,15 @@ public class transform {
     @SuppressWarnings({"UnusedReturnValue", "unused", "resource"})
     public static class JavaWriter implements Closeable {
         private final Writer os;
+        private final boolean java17;
         private int depth;
+        private boolean insideSwitchExpression;
+        private String switchExpressionVarName;
 
-        public JavaWriter(Writer os, int depth) {
+        public JavaWriter(Writer os, int depth, boolean java17) {
             this.os = os;
             this.depth = depth;
+            this.java17 = java17;
         }
 
         public JavaWriter write(String data) {
@@ -915,27 +956,109 @@ public class transform {
             return this;
         }
 
+        public JavaWriter writeOpenSwitchExpression(String varType, String varName, boolean alreadyExistingVar, String data) {
+            if (insideSwitchExpression) throw new UnsupportedOperationException();
+            insideSwitchExpression = true;
+            this.switchExpressionVarName = varName;
+            if (java17) {
+                if (switchExpressionVarName == null) {
+                    write("return switch (" + data + ") {");
+                } else if (alreadyExistingVar) {
+                    write(varName + " = switch (" + data + ") {");
+                } else {
+                    write((varType == null ? "var" : varType) + " " + varName + " = switch (" + data + ") {");
+                }
+            } else {
+                if (!alreadyExistingVar && varName != null) {
+                    write((varType == null ? "Object" : varType) + " " + varName + ";");
+                    writeNewLine();
+                    writeIndent();
+                }
+                write("switch(" + data + ") {");
+            }
+            incrementIndentation();
+            return this;
+        }
+
         public JavaWriter writeSwitchBreak() {
+            if (insideSwitchExpression) throw new UnsupportedOperationException();
             decrementIndentation();
             write("break;");
             return this;
         }
 
+        public JavaWriter writeYield(String expression) {
+            if (!insideSwitchExpression) throw new UnsupportedOperationException();
+            if (java17) {
+                write("yield " + expression + ";");
+            } else if (this.switchExpressionVarName == null) {
+                write("return " + expression + ";");
+            } else {
+                write(this.switchExpressionVarName + " = " + expression + "; break;");
+            }
+            decrementIndentation();
+            return this;
+        }
+
+        public JavaWriter writeYieldException(String expression) {
+            if (!insideSwitchExpression) throw new UnsupportedOperationException();
+            write("throw new " + expression + "();");
+            decrementIndentation();
+            return this;
+        }
+
+        public JavaWriter writeCloseCase() {
+            write("}");
+            return this;
+        }
+
+        public JavaWriter writeCloseSwitchExpression() {
+            decrementIndentation();
+            writeIndent();
+            if (!insideSwitchExpression) throw new UnsupportedOperationException();
+            insideSwitchExpression = false;
+            if (java17) {
+                write("};");
+            } else {
+                write("}");
+            }
+            return this;
+        }
+
         public JavaWriter writeOpenSwitchCase(String data) {
+            if (java17 && insideSwitchExpression) {
+                write("case " + data + " -> {");
+            } else {
+                write("case " + data + ":");
+            }
             incrementIndentation();
-            write("case " + data + ":");
+            return this;
+        }
+
+        public JavaWriter writeSwitchCaseAndYield(String caseExpression, String yieldExpression) {
+            if (java17 && insideSwitchExpression) {
+                write("case " + caseExpression + " -> ");
+            } else {
+                write("case " + caseExpression + ": ");
+            }
+            if (!insideSwitchExpression) throw new UnsupportedOperationException();
+            if (java17) {
+                write(yieldExpression + ";");
+            } else if (this.switchExpressionVarName == null) {
+                write("return " + yieldExpression + ";");
+            } else {
+                write(this.switchExpressionVarName + " = " + yieldExpression + "; break;");
+            }
             return this;
         }
 
         public JavaWriter writeOpenSwitchDefault() {
+            if (java17 && insideSwitchExpression) {
+                write("default -> {");
+            } else {
+                write("default: {");
+            }
             incrementIndentation();
-            write("default:");
-            return this;
-        }
-
-        public JavaWriter writeSwitchDefault() {
-            incrementIndentation();
-            write("default:");
             return this;
         }
 

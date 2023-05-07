@@ -1,22 +1,52 @@
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.lang.IllegalStateException;
 import java.io.IOException;
 import java.io.DataInput;
 import java.util.Arrays;
 import java.util.Objects;
 
+/**
+ * This class contains as static nested classes all other TDLib interface
+ * type-classes and function-classes.
+ * <p>
+ * It has no inner classes, functions or public members.
+ */
 public final class TdApi {
+
+	private TdApi() {}
+
+	/**
+	 * This class is a base class for all TDLib interface classes.
+	 */
 	public abstract static class Object {
+
+		/**
+		 * Returns a string representation of the object.
+		 *
+		 * @return a string representation of the object.
+		 */
 		public native String toString();
 
+		/**
+		 * Returns an identifier uniquely determining type of the object.
+		 *
+		 * @return a unique identifier of the object type.
+		 */
 		public abstract int getConstructor();
 
+		/**
+		 * Default Object constructor.
+		 */
 		private Object() {}
 
+		/**
+		 * Serialize the object.
+		 *
+		 * @return the current object serialized into a byte[].
+		 * @throws IOException the serialization failed
+		 */
 		public byte[] serialize() throws IOException {
 			try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 				try (DataOutputStream out = new DataOutputStream(baos)) {
@@ -26,12 +56,33 @@ public final class TdApi {
 			}
 		}
 
+		/**
+		 * Serialize the object.
+		 *
+		 * @param out the output in which the object is serialized.
+		 * @throws IOException the serialization failed
+		 */
 		public abstract void serialize(DataOutput out) throws IOException;
+
 	}
 
+	/**
+	 * This class is a base class for all TDLib interface function-classes.
+	 * @param <R> The function return type
+	 */
 	public abstract static class Function<R extends TdApi.Object> extends TdApi.Object {
+
+		/**
+		 * Default Function constructor.
+		 */
 		private Function() {}
-		
+
+		/**
+		 * Returns a string representation of the object.
+		 *
+		 * @return a string representation of the object.
+		 */
 		public native String toString();
-    }
+
+  }
 
