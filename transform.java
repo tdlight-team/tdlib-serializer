@@ -29,9 +29,9 @@ public class transform {
             "String", "String");
 
     public static void main(String[] args) throws IOException, URISyntaxException {
-        var headersPath = Path.of(transform.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent().resolve("headers.txt");
 
         // Parse arguments
+        Path headersPath = null;
         Path sourcePath = null;
         Path outputPath = null;
         boolean tempJava17 = false;
@@ -72,6 +72,9 @@ public class transform {
         }
         // Check required arguments
         if (sourcePath == null || outputPath == null) throw getHelp();
+        if (headersPath == null) {
+            headersPath = Path.of(transform.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent().resolve("headers.txt");
+        }
         boolean java17 = tempJava17;
         boolean overwrite = tempOverwrite;
         var headers = Files.readString(headersPath, StandardCharsets.UTF_8);
