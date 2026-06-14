@@ -302,20 +302,47 @@ public class transform {
                 w.writeIndent().writeCloseDocs().writeNewLine();
 
                 w.writeIndent().writeOpenFunction("deserialize", List.of(Map.entry("DataInput", "input")), "static Object", "IOException").writeNewLine();
+                w.writeIndent().writeLocalAssign("int", "constructorId", "input.readInt()").writeNewLine();
+                w.writeIndent().writeLocalAssign("Object", "result", "null").writeNewLine();
 
-                w.writeIndent().writeOpenSwitchExpression(null, null, false, "input.readInt()").writeNewLine();
+                List<Map.Entry<String, TdType>> classesList = new ArrayList<>(allClasses.entrySet());
+                int chunkSize = 500;
+                int chunkCount = (classesList.size() + chunkSize - 1) / chunkSize;
 
-                allClasses.forEach((className, x) -> {
-                   w.writeIndent().writeSwitchCaseAndYield(className + ".CONSTRUCTOR", "new " + className + "(input)").writeNewLine();
-                });
+                for (int i = 0; i < chunkCount; i++) {
+                    w.writeIndent().writeOpenIf("result == null").writeNewLine();
+                    w.writeIndent().writeAssign("result", "deserialize" + i + "(constructorId, input)").writeNewLine();
+                    w.writeCloseBlock(true).writeNewLine();
+                }
 
-                w.writeIndent().writeOpenSwitchDefault().writeNewLine();
-
-                w.writeIndent().writeYieldException("UnsupportedOperationException").writeNewLine();
-                w.writeIndent().writeCloseCase().writeNewLine();
-                w.writeCloseSwitchExpression().writeNewLine();
-
+                w.writeIndent().writeOpenIf("result == null").writeNewLine();
+                w.writeIndent().writeException("UnsupportedOperationException").writeNewLine();
                 w.writeCloseBlock(true).writeNewLine();
+
+                w.writeIndent().writeReturn("result").writeNewLine();
+                w.writeCloseBlock(true).writeNewLine();
+                w.writeNewLine();
+
+                for (int i = 0; i < chunkCount; i++) {
+                    int start = i * chunkSize;
+                    int end = Math.min(start + chunkSize, classesList.size());
+                    List<Map.Entry<String, TdType>> chunk = classesList.subList(start, end);
+
+                    w.writeIndent().writeOpenFunction("deserialize" + i, List.of(Map.entry("int", "constructor"), Map.entry("DataInput", "input")), "static Object", "IOException").writeNewLine();
+                    w.writeIndent().write("switch (constructor) {").writeNewLine();
+                    w.incrementIndentation();
+
+                    for (var entry : chunk) {
+                        String className = entry.getKey();
+                        w.writeIndent().write("case " + className + ".CONSTRUCTOR: return new " + className + "(input);").writeNewLine();
+                    }
+
+                    w.writeIndent().write("default: return null;").writeNewLine();
+                    w.decrementIndentation();
+                    w.writeIndent().write("}").writeNewLine();
+                    w.writeCloseBlock(true).writeNewLine();
+                    w.writeNewLine();
+                }
                 w.writeCloseBlock(true).writeNewLine();
 
                 w.writeNewLine();
@@ -1095,14 +1122,14 @@ public class transform {
         }
 
         public JavaWriter writeOpenFor(String start, String cond, String stmt) {
-            incrementIndentation();
             write("for (" + start + "; " + cond + "; " + stmt + ") {");
+            incrementIndentation();
             return this;
         }
 
         public JavaWriter writeOpenIf(String cond) {
-            incrementIndentation();
             write("if (" + cond + ") {");
+            incrementIndentation();
             return this;
         }
 
@@ -1131,7 +1158,6 @@ public class transform {
         }
 
         public JavaWriter writeOpenFunction(String name, List<Map.Entry<String, String>> args, String type, String e) {
-            incrementIndentation();
             write(args.stream().map(arg -> arg.getKey() + " " + arg.getValue()).collect(Collectors.joining(", ",
                     "public " + type + " " + name + "(",
                     ")")));
@@ -1139,11 +1165,11 @@ public class transform {
                 write(" throws " + e);
             }
             write(" {");
+            incrementIndentation();
             return this;
         }
 
         public JavaWriter writeOpenConstructorFunction(String name, List<Map.Entry<String, String>> args, String e) {
-            incrementIndentation();
             write("public " + name + "(");
             var resultArgs = args.stream().map(arg -> arg.getKey() + " " + arg.getValue()).collect(Collectors.joining(", "));
             if (resultArgs.length() > 60) {
@@ -1166,6 +1192,7 @@ public class transform {
                 write(" throws " + e);
             }
             write(" {");
+            incrementIndentation();
             return this;
         }
 
