@@ -567,15 +567,7 @@ public class transform {
                         w.writeNewLine();
                         classMeta.arguments.forEach(arg -> {
                             w.writeIndent();
-                            if (NATIVE_TO_OBJ.containsKey(arg.type)) {
-                                w.writeOpenIf("this." + arg.name + " != " + otherClass + "."  + arg.name);
-                            } else if (!arg.type.endsWith("[]")) {
-                                w.writeOpenIf("!Objects.equals(this." + arg.name + ", " + otherClass + "." + arg.name + ")");
-                            } else if (arg.type.endsWith("[][]")) {
-                                w.writeOpenIf("!Arrays.deepEquals(this." + arg.name + ", " + otherClass + "." + arg.name + ")");
-                            } else {
-                                w.writeOpenIf("!Arrays.equals(this." + arg.name + ", " + otherClass + "." + arg.name + ")");
-                            }
+                            w.writeOpenIf(inequalityExpression(arg.type, arg.name, otherClass));
                             w.writeNewLine().writeIndent().writeReturn("false").writeNewLine().writeCloseBlock(true).writeNewLine();
                         });
                     }
@@ -585,34 +577,16 @@ public class transform {
                     w.writeIndent().writeOpenFunction("hashCode", List.of(), "int", null).writeNewLine();
                     w.writeIndent();
                     if (!classMeta.arguments.isEmpty()) {
-                        var primitives = classMeta.arguments.stream().filter(n -> PRIMITIVES.contains(n.type)).collect(Collectors.toList());
-                        if (!primitives.isEmpty() && classMeta.arguments.size() == 1) {
-                            w.writeReturn(NATIVE_TO_OBJ.get(primitives.get(0).type) + ".hashCode(this." + primitives.get(0).name + ")");
-                        } else if (!primitives.isEmpty()) {
-                            w.writeLocalAssign("int", "result", NATIVE_TO_OBJ.get(primitives.get(0).type) + ".hashCode(this." + primitives.get(0).name + ")").writeNewLine();
-                            w.writeIndent();
-                        }
-                        var tdapi = classMeta.arguments.stream().filter(n -> !PRIMITIVES.contains(n.type)).collect(Collectors.toList());
-                        int start;
-                        if (!tdapi.isEmpty() && classMeta.arguments.size() == 1) {
-                            w.writeReturn(hashObject("this." + tdapi.get(0).name, tdapi.get(0).type));
-                            start = 1;
+                        var hashes = hashExpressions(classMeta.arguments);
+                        if (hashes.size() == 1) {
+                            w.writeReturn(hashes.get(0));
                         } else {
-                            if (primitives.isEmpty()) {
-                                w.writeLocalAssign("int", "result", hashObject("this." + tdapi.get(0).name, tdapi.get(0).type)).writeNewLine();
+                            w.writeLocalAssign("int", "result", hashes.get(0)).writeNewLine();
+                            hashes.stream().skip(1).forEach(hash -> {
                                 w.writeIndent();
-                                start = 1;
-                            } else {
-                                start = 0;
-                            }
-                        }
-
-                        tdapi.stream().skip(start).forEach(arg -> {
-                            w.writeAssign("result", "result * 31 + (" + hashObject("this." + arg.name, arg.type) + ")").writeNewLine();
+                                w.writeAssign("result", "result * 31 + (" + hash + ")").writeNewLine();
+                            });
                             w.writeIndent();
-                        });
-
-                        if (classMeta.arguments.size() > 1) {
                             w.writeReturn("result");
                         }
                     } else {
@@ -627,6 +601,36 @@ public class transform {
                 w.write("}");
             }
         }
+    }
+
+    static String inequalityExpression(String type, String fieldName, String otherClass) {
+        var left = "this." + fieldName;
+        var right = otherClass + "." + fieldName;
+        if (type.equals("double")) {
+            return "Double.compare(" + left + ", " + right + ") != 0";
+        } else if (PRIMITIVES.contains(type)) {
+            return left + " != " + right;
+        } else if (type.endsWith("[][]")) {
+            return "!Arrays.deepEquals(" + left + ", " + right + ")";
+        } else if (type.endsWith("[]")) {
+            return "!Arrays.equals(" + left + ", " + right + ")";
+        } else {
+            return "!Objects.equals(" + left + ", " + right + ")";
+        }
+    }
+
+    static List<String> hashExpressions(List<CurrentArgument> arguments) {
+        return arguments.stream()
+                .map(argument -> hashExpression(argument.type, argument.name))
+                .collect(Collectors.toList());
+    }
+
+    static String hashExpression(String type, String fieldName) {
+        var value = "this." + fieldName;
+        if (PRIMITIVES.contains(type)) {
+            return NATIVE_TO_OBJ.get(type) + ".hashCode(" + value + ")";
+        }
+        return hashObject(value, type);
     }
 
     private static String hashObject(String name, String type) {
