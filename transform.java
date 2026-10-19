@@ -473,7 +473,7 @@ public class transform {
                             if (NATIVES.contains(baseArgType)) {
                                 deserializeNative(w, arg.name + "[i]", baseArgType, false);
                             } else {
-                                deserializeTdApi(w, arg.name + "[i]", baseArgType, containerClassesDocs, objectClasses, false);
+                                deserializeTdApi(w, arg.name + "[i]", baseArgType, containerClassesDocs, objectClasses);
                             }
                             w.writeCloseBlock(true).writeNewLine();
                             w.writeCloseBlock(true).writeNewLine();
@@ -487,7 +487,7 @@ public class transform {
                             if (NATIVES.contains(baseArgType)) {
                                 deserializeNative(w, arg.name + "[i][j]", baseArgType, false);
                             } else {
-                                deserializeTdApi(w, arg.name + "[i][j]", baseArgType, containerClassesDocs, objectClasses, false);
+                                deserializeTdApi(w, arg.name + "[i][j]", baseArgType, containerClassesDocs, objectClasses);
                             }
                             w.writeCloseBlock(true).writeNewLine();
                             w.writeCloseBlock(true).writeNewLine();
@@ -527,7 +527,7 @@ public class transform {
                             if (NATIVES.contains(baseArgType)) {
                                 serializeNative(w, arg.name + "[i]", baseArgType, false);
                             } else {
-                                serializeTdApi(w, arg.name + "[i]", false);
+                                serializeTdApi(w, arg.name + "[i]");
                             }
                             w.writeCloseBlock(true).writeNewLine();
                             w.writeCloseBlock(true).writeNewLine();
@@ -544,7 +544,7 @@ public class transform {
                             if (NATIVES.contains(baseArgType)) {
                                 serializeNative(w, arg.name + "[i][j]", baseArgType, false);
                             } else {
-                                serializeTdApi(w, arg.name + "[i][j]", false);
+                                serializeTdApi(w, arg.name + "[i][j]");
                             }
                             w.writeCloseBlock(true).writeNewLine();
                             w.writeCloseBlock(true).writeNewLine();
@@ -644,20 +644,12 @@ public class transform {
     }
 
     private static void serializeTdApi(JavaWriter w, String argName) {
-        serializeTdApi(w, argName, true);
-    }
-
-    private static void serializeTdApi(JavaWriter w, String argName, boolean nullCheck) {
-        if (nullCheck) {
-            w.writeIndent().writeOpenIf("this." + argName + " == null").writeNewLine();
-            w.writeIndent().writeCall("output.writeBoolean", "false").writeNewLine();
-            w.writeOpenIfElse(true).writeNewLine();
-            w.writeIndent().writeCall("output.writeBoolean", "true").writeNewLine();
-        }
+        w.writeIndent().writeOpenIf("this." + argName + " == null").writeNewLine();
+        w.writeIndent().writeCall("output.writeBoolean", "false").writeNewLine();
+        w.writeOpenIfElse(true).writeNewLine();
+        w.writeIndent().writeCall("output.writeBoolean", "true").writeNewLine();
         w.writeIndent().writeCall("this." + argName + ".serialize", "output").writeNewLine();
-        if (nullCheck) {
-            w.writeCloseBlock(true).writeNewLine();
-        }
+        w.writeCloseBlock(true).writeNewLine();
     }
 
     private static void serializeNative(JavaWriter w,  String argName, String argType) {
@@ -711,14 +703,8 @@ public class transform {
         }
     }
 
-    private static void deserializeTdApi(JavaWriter w, String name, String type, Map<String, List<String>> cont, Map<String, TdType> classes) {
-        deserializeTdApi(w, name, type, cont, classes, true);
-    }
-
-    private static void deserializeTdApi(JavaWriter w, String argName, String argType, Map<String, List<String>> cont, Map<String, TdType> classes, boolean nullCheck) {
-        if (nullCheck) {
-            w.writeIndent().writeOpenIf("input.readBoolean()").writeNewLine();
-        }
+    private static void deserializeTdApi(JavaWriter w, String argName, String argType, Map<String, List<String>> cont, Map<String, TdType> classes) {
+        w.writeIndent().writeOpenIf("input.readBoolean()").writeNewLine();
         w.writeIndent();
         if (cont.containsKey(argType)) {
             w.writeOpenSwitchExpression(null, "this." + argName, true, "input.readInt()").writeNewLine();
@@ -739,9 +725,7 @@ public class transform {
             w.writeNewLine().writeCloseBlock(true).writeNewLine();
             w.writeIndent().writeClassAssign(argName, "new " + argType + "(input)").writeNewLine();
         }
-        if (nullCheck) {
-            w.writeCloseBlock(true).writeNewLine();
-        }
+        w.writeCloseBlock(true).writeNewLine();
     }
 
     private static void deserializeNative(JavaWriter w, String name, String type) {
